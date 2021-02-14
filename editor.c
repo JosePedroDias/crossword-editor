@@ -16,10 +16,17 @@
 #define CHAR_RIGHT  67
 #define CHAR_UP     65
 #define CHAR_DOWN   66
+#define CHAR_a      97
+#define CHAR_z      122
+#define CHAR_Q      81
+
 
 #define CLR_GRID    1
 #define CLR_FILLED  2
 #define CLR_CURSOR  3
+
+#define MODE_HORIZONTAL 0
+#define MODE_VERTICAL   1
 
 #define DEFAULT_FILE "data.bin"
 
@@ -74,37 +81,14 @@ void save(S_CELL *cells, int width, int height) {
 
 ////
 
-bool processInput(int c, S_CELL *cells, int *x, int *y, int width, int height) {
-  if (c == CHAR_SPACE) { // leave
-    return false;
-  } else if (c == CHAR_LEFT && *x > 0) {
-    --*x;
-  } else if (c == CHAR_RIGHT && *x < width-1) {
-    ++*x;
-  } else if (c == CHAR_UP && *y > 0) {
-    --*y;
-  } else if (c == CHAR_DOWN && *y < height-1) {
-    ++*y;
-  } else if (c == CHAR_ENTER) { // toggle filled
-    S_CELL* cell = getCell(cells, *x, *y, width);
-    cell->filled = !cell->filled;
-  } else if (c >= 97 && c <= 122) { // a to z
-    S_CELL* cell = getCell(cells, *x, *y, width);
-    cell->value = (char)c;
-  }
-  return true;
-}
-
-////
-
 void drawCursor(int x, int y) {
   attron(COLOR_PAIR(CLR_CURSOR));
   mvaddch(y*2+1, x*2+1, '@');
   attroff(COLOR_PAIR(CLR_CURSOR));
 }
 
-void drawStatus(int x, int y, int c) {
-  mvprintw(STATUS_Y, 0, "y: %d, y: %d, (c: %d)    ", y, x, c);
+void drawStatus(int x, int y, int c, int mode) {
+  mvprintw(STATUS_Y, 0, "pos:%d, %d | mode: %d (c: %d)    ", x, y, mode, c);
 }
 
 void drawGrid(int width, int height) {
@@ -152,6 +136,45 @@ void drawCells(S_CELL *cells, int width, int height) {
   }
 }
 
+////
+
+bool processInput(int c, S_CELL *cells, int *x, int *y, int *mode, int width, int height) {
+  if (c == CHAR_Q) {
+    return false; // leave orderly
+  } else if (c == CHAR_TAB) {
+    *mode = *mode == MODE_HORIZONTAL ? MODE_VERTICAL : MODE_HORIZONTAL;
+  } else if (c == CHAR_LEFT && *x > 0) {
+    --*x;
+  } else if (c == CHAR_RIGHT && *x < width-1) {
+    ++*x;
+  } else if (c == CHAR_UP && *y > 0) {
+    --*y;
+  } else if (c == CHAR_DOWN && *y < height-1) {
+    ++*y;
+  } else if (c == CHAR_ENTER) { // toggle filled
+    S_CELL* cell = getCell(cells, *x, *y, width);
+    cell->filled = !cell->filled;
+  } else if ((c >= CHAR_a && c <= CHAR_z) || c == CHAR_SPACE) {
+    S_CELL* cell = getCell(cells, *x, *y, width);
+    if (cell->filled) { return true; }
+    cell->value = (char)c;
+    if (*mode == MODE_HORIZONTAL) {
+      if (*x < width-1) {
+        drawCell(cell, *x, *y);
+        ++*x;
+      }
+    } else {
+      if (*y < height-1) {
+        drawCell(cell, *x, *y);
+        ++*y;
+      }
+    }
+  }
+  return true;
+}
+
+////
+
 int main(int args, char **argv) {
   int width  = 11;
   int height = 11;
@@ -167,6 +190,7 @@ int main(int args, char **argv) {
 
   S_CELL *cells = malloc(width * height * sizeof(S_CELL));
 
+  int mode = MODE_HORIZONTAL;
   int x = 0;
   int y = 0;
   int c = 0;
@@ -196,14 +220,14 @@ int main(int args, char **argv) {
 
   do {
     drawCursor(x, y);
-    drawStatus(x, y, c);
+    drawStatus(x, y, c, mode);
     
     refresh();
 
     c = getch();
 
     drawCell(getCell(cells, x, y, width), x, y);
-  } while (processInput(c, cells, &x, &y, width, height));
+  } while (processInput(c, cells, &x, &y, &mode, width, height));
 
   endwin();
 
