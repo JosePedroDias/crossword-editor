@@ -40,48 +40,84 @@ struct Cell {
   char value;
 };
 
-#define FILE_FORMAT_VERSION 1 // TODO STILL UNUSED
+#define FILE_FORMAT_VERSION 1
 
-#define S_STATE struct State // TODO STILL UNUSED
+#define S_STATE struct State
 S_STATE {
-  int dims[2];
+  int width;
+  int height;
   S_CELL* cells;
 };
 
 
 //// cell lookup and clean
 
-S_CELL * getCell(S_CELL *cells, int x, int y, int width) {
-  return &cells[y*width + x];
+S_CELL * getCell(S_STATE *state, int x, int y) {
+  return &state->cells[y * state->width + x];
 }
 
-void clearCells(S_CELL *cells, int width, int height) {
+void clearCells(S_STATE *state) {
   int x, y;
-  for (y = 0; y < height; ++y) {
-    for (x = 0; x < width; ++x) {
-      S_CELL* cell = getCell(cells, x, y, width);
+  for (y = 0; y < state->height; ++y) {
+    for (x = 0; x < state->width; ++x) {
+      S_CELL* cell = getCell(state, x, y);
       cell->value = ' ';
       cell->filled = FALSE;
     }
   }
 }
 
+S_STATE * allocState(int width, int height) {
+  S_CELL *cells = calloc(width * height, sizeof(S_CELL));
+  S_STATE *state = calloc(1, sizeof(S_STATE));
+  state->width  = width;
+  state->height = height;
+  state->cells  = cells;
+  clearCells(state);
+  return state;
+}
+
+void freeState(S_STATE *state) {
+  free(state->cells);
+  free(state);
+}
+
 
 //// file I/O
 
-bool load(S_CELL *cells, int width, int height) {
+S_STATE * load() {
   FILE *file = fopen(DEFAULT_FILE, "rb");
   if (file == NULL) {
     return false;
   }
-  fread(cells, sizeof(S_CELL), width*height, file);
+  int version, width, height;
+  fread(&version,  sizeof(int), 1, file);
+  if (version != FILE_FORMAT_VERSION) {
+    printf("File with unsupported version %d (expected %d).\n", version, FILE_FORMAT_VERSION);
+    return NULL;
+  }
+  fread(&width,  sizeof(int), 1, file);
+  fread(&height, sizeof(int), 1, file);
+  printf("%d x %d\n", width, height);
+
+  S_STATE *state = allocState(width, height);
+
+  fread(state->cells, sizeof(S_CELL), width*height, file);
   fclose(file);
-  return true;
+  return state;
 }
 
-void save(S_CELL *cells, int width, int height) {
+void save(S_STATE *state) {
   FILE *file = fopen(DEFAULT_FILE, "wb");
-  fwrite(cells, sizeof(S_CELL), width*height, file);
+
+  int version = FILE_FORMAT_VERSION;
+  fwrite(&version, sizeof(int), 1, file);
+
+  fwrite(&state->width,  sizeof(int), 1, file);
+  fwrite(&state->height, sizeof(int), 1, file);
+
+  fwrite(&state->cells, sizeof(S_CELL), state->width * state->height, file);
+
   fclose(file);
 }
 
@@ -138,11 +174,11 @@ void drawCell(S_CELL *cell, int x, int y) {
   }
 }
 
-void drawCells(S_CELL *cells, int width, int height) {
+void drawCells(S_STATE *state) {
   int x, y;
-  for (y = 0; y < height; ++y) {
-    for (x = 0; x < width; ++x) {
-      S_CELL* cell = getCell(cells, x, y, width);
+  for (y = 0; y < state->height; ++y) {
+    for (x = 0; x < state->width; ++x) {
+      S_CELL* cell = getCell(state, x, y);
       drawCell(cell, x, y);
     }
   }
@@ -168,30 +204,30 @@ void advance(S_CELL* cell, int mode, int *x, int *y, int width, int height, int 
   }
 }
 
-bool processInput(int c, S_CELL *cells, int *x, int *y, int *mode, int width, int height) {
-  S_CELL* cell = getCell(cells, *x, *y, width);
+bool processInput(int c, S_STATE *state, int *x, int *y, int *mode) {
+  S_CELL* cell = getCell(state, *x, *y);
   if (c == CHAR_Q) {
     return false; // leave orderly
   } else if (c == CHAR_TAB) {
     *mode = *mode == MODE_HORIZONTAL ? MODE_VERTICAL : MODE_HORIZONTAL;
   } else if (c == CHAR_LEFT && *x > 0) {
     --*x;
-  } else if (c == CHAR_RIGHT && *x < width-1) {
+  } else if (c == CHAR_RIGHT && *x < state->width-1) {
     ++*x;
   } else if (c == CHAR_UP && *y > 0) {
     --*y;
-  } else if (c == CHAR_DOWN && *y < height-1) {
+  } else if (c == CHAR_DOWN && *y < state->height-1) {
     ++*y;
   } else if (c == CHAR_ENTER) { // toggle filled
     cell->filled = !cell->filled;
-    advance(cell, *mode, x, y, width, height, 1);
+    advance(cell, *mode, x, y, state->width, state->height, 1);
   } else if ((c >= CHAR_a && c <= CHAR_z) || c == CHAR_SPACE) {
     if (cell->filled) { return true; }
     cell->value = (char)c;
-    advance(cell, *mode, x, y, width, height, 1);
+    advance(cell, *mode, x, y, state->width, state->height, 1);
   } else if (c == CHAR_BCKSPC) {
     cell->value = (char)' ';
-    advance(cell, *mode, x, y, width, height, -1);
+    advance(cell, *mode, x, y, state->width, state->height, -1);
   }
   return true;
 }
@@ -212,15 +248,19 @@ int main(int args, char **argv) {
     }
   }
 
-  S_CELL *cells = malloc(width * height * sizeof(S_CELL));
+  S_STATE *state = allocState(width, height);
+  //printf("w: %d %d\n", state->width, state->height);
 
   int mode = MODE_HORIZONTAL;
   int x = 0;
   int y = 0;
   int c = 0;
 
-  if (!load(cells, width, height)) {
-    clearCells(cells, width, height);
+  if (!load()) {
+    clearCells(state);
+    printf("new board\n");
+  } else {
+    printf("load OK\n");
   }
 
   initscr();
@@ -240,7 +280,7 @@ int main(int args, char **argv) {
   init_pair(CLR_CURSOR,  COLOR_RED,    COLOR_BLACK);
 
   drawGrid(width, height);
-  drawCells(cells, width, height);
+  drawCells(state);
 
   do {
     drawCursor(x, y);
@@ -250,14 +290,14 @@ int main(int args, char **argv) {
 
     c = getch();
 
-    drawCell(getCell(cells, x, y, width), x, y);
-  } while (processInput(c, cells, &x, &y, &mode, width, height));
+    drawCell(getCell(state, x, y), x, y);
+  } while (processInput(c, state, &x, &y, &mode));
 
   endwin();
 
-  save(cells, width, height);
+  save(state);
 
-  free(cells);
+  freeState(state);
 
   return 0;
 }
