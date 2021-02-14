@@ -1,14 +1,15 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <ncurses.h>
 
 // cheat sheet:
 // https://github.com/thenamankumar/ncurses-cheatsheet/blob/master/cheatsheet.md#initialization-functions
-
-// tutorial
+//
+// tutorial:
 // https://www.youtube.com/watch?v=lV-OPQhPvSM&list=PL2U2TQ__OrQ8jTf0_noNKtHMuYlyxQl4v
 
-int WIDTH = 11;
-int HEIGHT = 11;
+int width  = 11;
+int height = 11;
 
 #define CHAR_ENTER  10
 #define CHAR_ESCAPE 27 // problematic?
@@ -22,6 +23,8 @@ int HEIGHT = 11;
 #define CLR_FILLED  2
 #define CLR_CURSOR  3
 
+#define DEFAULT_FILE "data.bin"
+
 #define STATUS_Y 25
 
 struct cell {
@@ -29,20 +32,46 @@ struct cell {
   char value;
 };
 
+void drawCell(struct cell *ce, int x, int y) {
+  char v = ce->value | ' ';
+  if (ce->filled) {
+    v = ' ';
+  }
+
+  if (ce->filled) {
+    attron(COLOR_PAIR(CLR_FILLED));
+  }
+
+  mvaddch(y*2+1, x*2+1, v);
+
+  if (ce->filled) {
+    attroff(COLOR_PAIR(CLR_FILLED));
+  }
+}
+
 int main() {
-  struct cell cells[WIDTH][HEIGHT];
+  struct cell cells[width][height];
+
+  FILE *file;
 
   int x = 0;
   int y = 0;
   int c = 0;
   int xx, yy;
 
-  // clean cells
-  for (yy = 0; yy < HEIGHT; ++yy) {
-    for (xx = 0; xx < WIDTH; ++xx) {
-      struct cell* ce = &cells[xx][yy];
-      ce->value = ' ';
-      ce->filled = FALSE;
+  file = fopen(DEFAULT_FILE, "rb");
+  if (file != NULL) {
+    // load from file
+    fread(&cells, sizeof(struct cell), width*height, file);
+    fclose(file);
+  } else {
+    // clean cells
+    for (yy = 0; yy < height; ++yy) {
+      for (xx = 0; xx < width; ++xx) {
+        struct cell* ce = &cells[xx][yy];
+        ce->value = ' ';
+        ce->filled = FALSE;
+      }
     }
   }
 
@@ -67,21 +96,31 @@ int main() {
 
   // draw grid
   attron(COLOR_PAIR(CLR_GRID));
-  for (yy = 0; yy <= HEIGHT; ++yy) {
-    for (xx = 0; xx <= WIDTH; ++xx) {
-      if (xx == WIDTH) {
-        mvprintw(yy*2,WIDTH*2, "+");
+  for (yy = 0; yy <= height; ++yy) {
+    for (xx = 0; xx <= width; ++xx) {
+      if (xx == width) {
+        mvprintw(yy*2,width*2, "+");
       } else {
         mvprintw(yy*2,   xx*2, "+-");
       }
-      if (yy != HEIGHT) {
+      if (yy != height) {
         mvprintw(yy*2+1, xx*2, "|");
       }
     }
   }
   attroff(COLOR_PAIR(CLR_GRID));
 
+  // draw all content
+  for (yy = 0; yy < height; ++yy) {
+    for (xx = 0; xx < width; ++xx) {
+      struct cell* ce = &cells[xx][yy];
+      drawCell(ce, xx, yy);
+    }
+  }
+
   for (;;) {
+
+    // draw cursor
     attron(COLOR_PAIR(CLR_CURSOR));
     mvaddch(y*2+1, x*2+1, '@');
     attroff(COLOR_PAIR(CLR_CURSOR));
@@ -91,33 +130,17 @@ int main() {
 
     c = getch();
 
-    {
-      struct cell* ce = &cells[x][y];
-      char v = ce->value | ' ';
-      if (ce->filled) {
-        v = ' ';
-      }
-
-      if (ce->filled) {
-        attron(COLOR_PAIR(CLR_FILLED));
-      }
-
-      mvaddch(y*2+1, x*2+1, v);
-
-      if (ce->filled) {
-        attroff(COLOR_PAIR(CLR_FILLED));
-      }
-    }
+    drawCell(&cells[x][y], x, y);
 
     if (c == CHAR_SPACE) { // leave
        break;
     } else if (c == CHAR_LEFT && x > 0) {
       --x;
-    } else if (c == CHAR_RIGHT && x < WIDTH-1) {
+    } else if (c == CHAR_RIGHT && x < width-1) {
       ++x;
     } else if (c == CHAR_UP && y > 0) {
       --y;
-    } else if (c == CHAR_DOWN && y < HEIGHT-1) {
+    } else if (c == CHAR_DOWN && y < height-1) {
       ++y;
     } else if (c == CHAR_ENTER) { // toggle filled
       cells[x][y].filled = !cells[x][y].filled;
@@ -128,7 +151,9 @@ int main() {
 
   endwin();
 
-  printf("all done!");
+  file = fopen(DEFAULT_FILE, "wb");
+  fwrite(&cells, sizeof(struct cell), width*height, file);
+  fclose(file);
 
   return 0;
 }
