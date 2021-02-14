@@ -2,35 +2,37 @@
 #include <stdlib.h>
 #include <ncurses.h>
 
-// cheat sheet:
-// https://github.com/thenamankumar/ncurses-cheatsheet/blob/master/cheatsheet.md#initialization-functions
-//
-// tutorial:
-// https://www.youtube.com/watch?v=lV-OPQhPvSM&list=PL2U2TQ__OrQ8jTf0_noNKtHMuYlyxQl4v
 
-#define CHAR_TAB     9
-#define CHAR_ENTER  10
-#define CHAR_ESCAPE 27 // problematic?
-#define CHAR_SPACE  32
-#define CHAR_LEFT   68
-#define CHAR_RIGHT  67
-#define CHAR_UP     65
-#define CHAR_DOWN   66
-#define CHAR_a      97
+//// DEFINES
+
+#define CHAR_TAB      9
+#define CHAR_ENTER   10
+#define CHAR_ESCAPE  27 // problematic?
+#define CHAR_BCKSPC 127
+
+#define CHAR_LEFT    68
+#define CHAR_RIGHT   67
+#define CHAR_UP      65
+#define CHAR_DOWN    66
+
+#define CHAR_SPACE   32
+#define CHAR_a       97
 #define CHAR_z      122
-#define CHAR_Q      81
+#define CHAR_Q       81
 
-
-#define CLR_GRID    1
-#define CLR_FILLED  2
-#define CLR_CURSOR  3
+#define CLR_GRID   1
+#define CLR_FILLED 2
+#define CLR_CURSOR 3
 
 #define MODE_HORIZONTAL 0
 #define MODE_VERTICAL   1
 
+#define STATUS_Y 25
+
 #define DEFAULT_FILE "data.bin"
 
-#define STATUS_Y 25
+
+//// data structures
 
 #define S_CELL struct Cell
 struct Cell {
@@ -38,13 +40,16 @@ struct Cell {
   char value;
 };
 
-#define FILE_FORMAT_VERSION 1
+#define FILE_FORMAT_VERSION 1 // TODO STILL UNUSED
 
-#define S_STATE struct State
+#define S_STATE struct State // TODO STILL UNUSED
 S_STATE {
   int dims[2];
   S_CELL* cells;
 };
+
+
+//// cell lookup and clean
 
 S_CELL * getCell(S_CELL *cells, int x, int y, int width) {
   return &cells[y*width + x];
@@ -61,7 +66,8 @@ void clearCells(S_CELL *cells, int width, int height) {
   }
 }
 
-////
+
+//// file I/O
 
 bool load(S_CELL *cells, int width, int height) {
   FILE *file = fopen(DEFAULT_FILE, "rb");
@@ -79,7 +85,8 @@ void save(S_CELL *cells, int width, int height) {
   fclose(file);
 }
 
-////
+
+//// draw functions
 
 void drawCursor(int x, int y) {
   attron(COLOR_PAIR(CLR_CURSOR));
@@ -88,7 +95,12 @@ void drawCursor(int x, int y) {
 }
 
 void drawStatus(int x, int y, int c, int mode) {
-  mvprintw(STATUS_Y, 0, "pos:%d, %d | mode: %d (c: %d)    ", x, y, mode, c);
+  char *modeS = mode == MODE_HORIZONTAL ? "HOR" : "VER";
+  #ifdef DEBUG
+    mvprintw(STATUS_Y, 0, "pos: %d,%d | mode: %s | char: %d   ", x, y, modeS, c);
+  #else
+    mvprintw(STATUS_Y, 0, "pos: %d,%d | mode: %s    ", x, y, modeS);
+  #endif
 }
 
 void drawGrid(int width, int height) {
@@ -136,9 +148,28 @@ void drawCells(S_CELL *cells, int width, int height) {
   }
 }
 
-////
+
+//// act on user input
+
+void advance(S_CELL* cell, int mode, int *x, int *y, int width, int height, int delta) {
+  int *coord = mode == MODE_HORIZONTAL ? x : y;
+  int maxValue = mode == MODE_HORIZONTAL ? width : height;
+  bool valid = TRUE;
+
+  if (delta == 1) {
+    valid = *coord < maxValue - 1;
+  } else { // -1
+    valid = *coord > 0;
+  }
+
+  if (valid) {
+    drawCell(cell, *x, *y);
+    *coord += delta;
+  }
+}
 
 bool processInput(int c, S_CELL *cells, int *x, int *y, int *mode, int width, int height) {
+  S_CELL* cell = getCell(cells, *x, *y, width);
   if (c == CHAR_Q) {
     return false; // leave orderly
   } else if (c == CHAR_TAB) {
@@ -152,28 +183,21 @@ bool processInput(int c, S_CELL *cells, int *x, int *y, int *mode, int width, in
   } else if (c == CHAR_DOWN && *y < height-1) {
     ++*y;
   } else if (c == CHAR_ENTER) { // toggle filled
-    S_CELL* cell = getCell(cells, *x, *y, width);
     cell->filled = !cell->filled;
+    advance(cell, *mode, x, y, width, height, 1);
   } else if ((c >= CHAR_a && c <= CHAR_z) || c == CHAR_SPACE) {
-    S_CELL* cell = getCell(cells, *x, *y, width);
     if (cell->filled) { return true; }
     cell->value = (char)c;
-    if (*mode == MODE_HORIZONTAL) {
-      if (*x < width-1) {
-        drawCell(cell, *x, *y);
-        ++*x;
-      }
-    } else {
-      if (*y < height-1) {
-        drawCell(cell, *x, *y);
-        ++*y;
-      }
-    }
+    advance(cell, *mode, x, y, width, height, 1);
+  } else if (c == CHAR_BCKSPC) {
+    cell->value = (char)' ';
+    advance(cell, *mode, x, y, width, height, -1);
   }
   return true;
 }
 
-////
+
+//// main
 
 int main(int args, char **argv) {
   int width  = 11;

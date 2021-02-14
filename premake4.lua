@@ -11,7 +11,6 @@ solution "crossword-editor" configurations { "Debug", "Release" }
    flags { "Symbols", "ExtraWarnings" }
 
   configuration "Release"
-   defines { "NDEBUG" }
    flags { "Optimize" }
 
   project "crossword-editor"

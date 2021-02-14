@@ -4,24 +4,40 @@
 
     premake4 gmake
 
-## compile and run
+## compiling
 
     make
+
+or
+
+    make config=release
+
+
+## running
+
     ./editor
 
-you can pass initial dimensions for the board
+or, if you want to override the default 11 x 11 dimensions:
 
-previous board is loaded if `data.bin` is present
+    ./editor 16 14
+
+Previous board is loaded if `data.bin`, if present
 
 ## keys
 
 - arrow keys to move
 - write down characters to set cell
+- BCKSPC deletes
 - ENTER to fill/unfill cell
 - TAB to toggle between horizontal and vertical fill modes
-- space to exit
 - Q to save and exit
 
 ## TODO
 
 - binary format with version, width and height
+
+
+## References
+
+- [ncurses cheat sheet](https://github.com/thenamankumar/ncurses-cheatsheet/blob/master/cheatsheet.md#initialization-functions)
+- [ncurses tutorial](https://www.youtube.com/watch?v=lV-OPQhPvSM&list=PL2U2TQ__OrQ8jTf0_noNKtHMuYlyxQl4v)
