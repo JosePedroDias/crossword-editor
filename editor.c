@@ -24,45 +24,47 @@
 
 #define STATUS_Y 25
 
-struct cell {
+#define S_CELL struct Cell
+struct Cell {
   bool filled;
   char value;
 };
 
-// TODO
-struct state {
-  int width;
-  int height;
+#define FILE_FORMAT_VERSION 1
+
+struct State {
+  int dims[2];
+  S_CELL* cells;
 };
 
-struct cell * getCell(struct cell *cells, int x, int y, int width) {
+S_CELL * getCell(S_CELL *cells, int x, int y, int width) {
   return &cells[y*width + x];
 }
 
-void clearCells(struct cell *cells, int width, int height) {
+void clearCells(S_CELL *cells, int width, int height) {
   int x, y;
   for (y = 0; y < height; ++y) {
     for (x = 0; x < width; ++x) {
-      struct cell* ce = getCell(cells, x, y, width);
-      ce->value = ' ';
-      ce->filled = FALSE;
+      S_CELL* cell = getCell(cells, x, y, width);
+      cell->value = ' ';
+      cell->filled = FALSE;
     }
   }
 }
 
-bool load(struct cell *cells, int width, int height) {
+bool load(S_CELL *cells, int width, int height) {
   FILE *file = fopen(DEFAULT_FILE, "rb");
   if (file == NULL) {
     return false;
   }
-  fread(cells, sizeof(struct cell), width*height, file);
+  fread(cells, sizeof(S_CELL), width*height, file);
   fclose(file);
   return true;
 }
 
-void save(struct cell *cells, int width, int height) {
+void save(S_CELL *cells, int width, int height) {
   FILE *file = fopen(DEFAULT_FILE, "wb");
-  fwrite(cells, sizeof(struct cell), width*height, file);
+  fwrite(cells, sizeof(S_CELL), width*height, file);
   fclose(file);
 }
 
@@ -84,38 +86,43 @@ void drawGrid(int width, int height) {
   attroff(COLOR_PAIR(CLR_GRID));
 }
 
-void drawCell(struct cell *ce, int x, int y) {
-  char v = ce->value | ' ';
-  if (ce->filled) {
+void drawCell(S_CELL *cell, int x, int y) {
+  char v = cell->value | ' ';
+  if (cell->filled) {
     v = ' ';
   }
 
-  if (ce->filled) {
+  if (cell->filled) {
     attron(COLOR_PAIR(CLR_FILLED));
   }
 
   mvaddch(y*2+1, x*2+1, v);
 
-  if (ce->filled) {
+  if (cell->filled) {
     attroff(COLOR_PAIR(CLR_FILLED));
   }
 }
 
-void drawCells(struct cell *cells, int width, int height) {
+void drawCells(S_CELL *cells, int width, int height) {
   int x, y;
   for (y = 0; y < height; ++y) {
     for (x = 0; x < width; ++x) {
-      struct cell* ce = getCell(cells, x, y, width);
-      drawCell(ce, x, y);
+      S_CELL* cell = getCell(cells, x, y, width);
+      drawCell(cell, x, y);
     }
   }
 }
 
-int main() {
+int main(int args, char **argv) {
   int width  = 11;
   int height = 11;
 
-  struct cell *cells = malloc(width * height * sizeof(struct cell));
+  if (args == 3) {
+    width  = atoi(argv[1]);
+    height = atoi(argv[2]);
+  }
+
+  S_CELL *cells = malloc(width * height * sizeof(S_CELL));
 
   int x = 0;
   int y = 0;
@@ -169,11 +176,11 @@ int main() {
     } else if (c == CHAR_DOWN && y < height-1) {
       ++y;
     } else if (c == CHAR_ENTER) { // toggle filled
-      struct cell* ce = getCell(cells, x, y, width);
-      ce->filled = !ce->filled;
+      S_CELL* cell = getCell(cells, x, y, width);
+      cell->filled = !cell->filled;
     } else if (c >= 97 && c <= 122) { // a to z
-      struct cell* ce = getCell(cells, x, y, width);
-      ce->value = (char)c;
+      S_CELL* cell = getCell(cells, x, y, width);
+      cell->value = (char)c;
     }
   }
 
