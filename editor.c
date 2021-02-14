@@ -8,9 +8,6 @@
 // tutorial:
 // https://www.youtube.com/watch?v=lV-OPQhPvSM&list=PL2U2TQ__OrQ8jTf0_noNKtHMuYlyxQl4v
 
-int width  = 11;
-int height = 11;
-
 #define CHAR_ENTER  10
 #define CHAR_ESCAPE 27 // problematic?
 #define CHAR_SPACE  32
@@ -32,6 +29,61 @@ struct cell {
   char value;
 };
 
+// TODO
+struct state {
+  int width;
+  int height;
+};
+
+struct cell * getCell(struct cell *cells, int x, int y, int width) {
+  return &cells[y*width + x];
+}
+
+void clearCells(struct cell *cells, int width, int height) {
+  int x, y;
+  for (y = 0; y < height; ++y) {
+    for (x = 0; x < width; ++x) {
+      struct cell* ce = getCell(cells, x, y, width);
+      ce->value = ' ';
+      ce->filled = FALSE;
+    }
+  }
+}
+
+bool load(struct cell *cells, int width, int height) {
+  FILE *file = fopen(DEFAULT_FILE, "rb");
+  if (file == NULL) {
+    return false;
+  }
+  fread(cells, sizeof(struct cell), width*height, file);
+  fclose(file);
+  return true;
+}
+
+void save(struct cell *cells, int width, int height) {
+  FILE *file = fopen(DEFAULT_FILE, "wb");
+  fwrite(cells, sizeof(struct cell), width*height, file);
+  fclose(file);
+}
+
+void drawGrid(int width, int height) {
+  int x, y;
+  attron(COLOR_PAIR(CLR_GRID));
+  for (y = 0; y <= height; ++y) {
+    for (x = 0; x <= width; ++x) {
+      if (x == width) {
+        mvprintw(y*2,width*2, "+");
+      } else {
+        mvprintw(y*2,   x*2, "+-");
+      }
+      if (y != height) {
+        mvprintw(y*2+1, x*2, "|");
+      }
+    }
+  }
+  attroff(COLOR_PAIR(CLR_GRID));
+}
+
 void drawCell(struct cell *ce, int x, int y) {
   char v = ce->value | ' ';
   if (ce->filled) {
@@ -49,30 +101,28 @@ void drawCell(struct cell *ce, int x, int y) {
   }
 }
 
-int main() {
-  struct cell cells[width][height];
+void drawCells(struct cell *cells, int width, int height) {
+  int x, y;
+  for (y = 0; y < height; ++y) {
+    for (x = 0; x < width; ++x) {
+      struct cell* ce = getCell(cells, x, y, width);
+      drawCell(ce, x, y);
+    }
+  }
+}
 
-  FILE *file;
+int main() {
+  int width  = 11;
+  int height = 11;
+
+  struct cell *cells = malloc(width * height * sizeof(struct cell));
 
   int x = 0;
   int y = 0;
   int c = 0;
-  int xx, yy;
 
-  file = fopen(DEFAULT_FILE, "rb");
-  if (file != NULL) {
-    // load from file
-    fread(&cells, sizeof(struct cell), width*height, file);
-    fclose(file);
-  } else {
-    // clean cells
-    for (yy = 0; yy < height; ++yy) {
-      for (xx = 0; xx < width; ++xx) {
-        struct cell* ce = &cells[xx][yy];
-        ce->value = ' ';
-        ce->filled = FALSE;
-      }
-    }
+  if (!load(cells, width, height)) {
+    clearCells(cells, width, height);
   }
 
   initscr();
@@ -83,10 +133,7 @@ int main() {
     exit(1);
   }
 
-  //cbreak();
-  //raw();
   noecho();
-  //attron(A_INVIS);
   start_color();
 
   //        pairNumber   foreground    background
@@ -94,29 +141,8 @@ int main() {
   init_pair(CLR_FILLED,  COLOR_BLACK,  COLOR_WHITE);
   init_pair(CLR_CURSOR,  COLOR_RED,    COLOR_BLACK);
 
-  // draw grid
-  attron(COLOR_PAIR(CLR_GRID));
-  for (yy = 0; yy <= height; ++yy) {
-    for (xx = 0; xx <= width; ++xx) {
-      if (xx == width) {
-        mvprintw(yy*2,width*2, "+");
-      } else {
-        mvprintw(yy*2,   xx*2, "+-");
-      }
-      if (yy != height) {
-        mvprintw(yy*2+1, xx*2, "|");
-      }
-    }
-  }
-  attroff(COLOR_PAIR(CLR_GRID));
-
-  // draw all content
-  for (yy = 0; yy < height; ++yy) {
-    for (xx = 0; xx < width; ++xx) {
-      struct cell* ce = &cells[xx][yy];
-      drawCell(ce, xx, yy);
-    }
-  }
+  drawGrid(width, height);
+  drawCells(cells, width, height);
 
   for (;;) {
 
@@ -130,7 +156,7 @@ int main() {
 
     c = getch();
 
-    drawCell(&cells[x][y], x, y);
+    drawCell(getCell(cells, x, y, width), x, y);
 
     if (c == CHAR_SPACE) { // leave
        break;
@@ -143,17 +169,19 @@ int main() {
     } else if (c == CHAR_DOWN && y < height-1) {
       ++y;
     } else if (c == CHAR_ENTER) { // toggle filled
-      cells[x][y].filled = !cells[x][y].filled;
+      struct cell* ce = getCell(cells, x, y, width);
+      ce->filled = !ce->filled;
     } else if (c >= 97 && c <= 122) { // a to z
-      cells[x][y].value = (char)c;
+      struct cell* ce = getCell(cells, x, y, width);
+      ce->value = (char)c;
     }
   }
 
   endwin();
 
-  file = fopen(DEFAULT_FILE, "wb");
-  fwrite(&cells, sizeof(struct cell), width*height, file);
-  fclose(file);
+  save(cells, width, height);
+
+  free(cells);
 
   return 0;
 }
