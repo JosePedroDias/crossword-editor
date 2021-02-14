@@ -8,13 +8,14 @@
 // tutorial:
 // https://www.youtube.com/watch?v=lV-OPQhPvSM&list=PL2U2TQ__OrQ8jTf0_noNKtHMuYlyxQl4v
 
+#define CHAR_TAB     9
 #define CHAR_ENTER  10
 #define CHAR_ESCAPE 27 // problematic?
 #define CHAR_SPACE  32
-#define CHAR_LEFT  68
-#define CHAR_RIGHT 67
-#define CHAR_UP    65
-#define CHAR_DOWN  66
+#define CHAR_LEFT   68
+#define CHAR_RIGHT  67
+#define CHAR_UP     65
+#define CHAR_DOWN   66
 
 #define CLR_GRID    1
 #define CLR_FILLED  2
@@ -32,7 +33,8 @@ struct Cell {
 
 #define FILE_FORMAT_VERSION 1
 
-struct State {
+#define S_STATE struct State
+S_STATE {
   int dims[2];
   S_CELL* cells;
 };
@@ -52,6 +54,8 @@ void clearCells(S_CELL *cells, int width, int height) {
   }
 }
 
+////
+
 bool load(S_CELL *cells, int width, int height) {
   FILE *file = fopen(DEFAULT_FILE, "rb");
   if (file == NULL) {
@@ -66,6 +70,41 @@ void save(S_CELL *cells, int width, int height) {
   FILE *file = fopen(DEFAULT_FILE, "wb");
   fwrite(cells, sizeof(S_CELL), width*height, file);
   fclose(file);
+}
+
+////
+
+bool processInput(int c, S_CELL *cells, int *x, int *y, int width, int height) {
+  if (c == CHAR_SPACE) { // leave
+    return false;
+  } else if (c == CHAR_LEFT && *x > 0) {
+    --*x;
+  } else if (c == CHAR_RIGHT && *x < width-1) {
+    ++*x;
+  } else if (c == CHAR_UP && *y > 0) {
+    --*y;
+  } else if (c == CHAR_DOWN && *y < height-1) {
+    ++*y;
+  } else if (c == CHAR_ENTER) { // toggle filled
+    S_CELL* cell = getCell(cells, *x, *y, width);
+    cell->filled = !cell->filled;
+  } else if (c >= 97 && c <= 122) { // a to z
+    S_CELL* cell = getCell(cells, *x, *y, width);
+    cell->value = (char)c;
+  }
+  return true;
+}
+
+////
+
+void drawCursor(int x, int y) {
+  attron(COLOR_PAIR(CLR_CURSOR));
+  mvaddch(y*2+1, x*2+1, '@');
+  attroff(COLOR_PAIR(CLR_CURSOR));
+}
+
+void drawStatus(int x, int y, int c) {
+  mvprintw(STATUS_Y, 0, "y: %d, y: %d, (c: %d)    ", y, x, c);
 }
 
 void drawGrid(int width, int height) {
@@ -120,6 +159,10 @@ int main(int args, char **argv) {
   if (args == 3) {
     width  = atoi(argv[1]);
     height = atoi(argv[2]);
+    if (width < 1 || width > 20 || height < 1 || height > 20) {
+      printf("Dimension values must be between 1 and 20 (received %d and %d)!\n", width, height);
+      exit(2);
+    }
   }
 
   S_CELL *cells = malloc(width * height * sizeof(S_CELL));
@@ -136,7 +179,7 @@ int main(int args, char **argv) {
 
   if (has_colors() == FALSE) {
     endwin();
-    printf("Your terminal does not support color\n");
+    printf("This terminal does not support colors!\n");
     exit(1);
   }
 
@@ -151,38 +194,16 @@ int main(int args, char **argv) {
   drawGrid(width, height);
   drawCells(cells, width, height);
 
-  for (;;) {
-
-    // draw cursor
-    attron(COLOR_PAIR(CLR_CURSOR));
-    mvaddch(y*2+1, x*2+1, '@');
-    attroff(COLOR_PAIR(CLR_CURSOR));
-
-    mvprintw(STATUS_Y, 0, "y: %d, y: %d, (c: %d)    ", y, x, c);
+  do {
+    drawCursor(x, y);
+    drawStatus(x, y, c);
+    
     refresh();
 
     c = getch();
 
     drawCell(getCell(cells, x, y, width), x, y);
-
-    if (c == CHAR_SPACE) { // leave
-       break;
-    } else if (c == CHAR_LEFT && x > 0) {
-      --x;
-    } else if (c == CHAR_RIGHT && x < width-1) {
-      ++x;
-    } else if (c == CHAR_UP && y > 0) {
-      --y;
-    } else if (c == CHAR_DOWN && y < height-1) {
-      ++y;
-    } else if (c == CHAR_ENTER) { // toggle filled
-      S_CELL* cell = getCell(cells, x, y, width);
-      cell->filled = !cell->filled;
-    } else if (c >= 97 && c <= 122) { // a to z
-      S_CELL* cell = getCell(cells, x, y, width);
-      cell->value = (char)c;
-    }
-  }
+  } while (processInput(c, cells, &x, &y, width, height));
 
   endwin();
 
