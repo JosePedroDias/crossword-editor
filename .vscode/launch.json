@@ -1,0 +1,21 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "(gdb) Launch",
+            "type": "cppdbg",
+            "request": "launch",
+            "program": "/source/editor",
+            "args": [],
+            "stopAtEntry": true,
+            "cwd": "/source",
+            "environment": [],
+            "externalConsole": true,
+            "sourceFileMap": {
+                "/source": "${workspaceFolder}"
+            },
+            "debugServer": 9091,
+            "MIMode": "gdb"
+        }
+    ]
+}

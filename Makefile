@@ -24,6 +24,7 @@ help:
 	@echo ""
 	@echo "CONFIGURATIONS:"
 	@echo "   debug"
+	@echo "   debugnocurses"
 	@echo "   release"
 	@echo ""
 	@echo "TARGETS:"
