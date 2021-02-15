@@ -43,20 +43,24 @@ Previous board is loaded if `data.bin`, if present
 ## Running in docker
 
     docker build . -t gcc
-    docker run -p 9091:9091 --security-opt seccomp:unconfined -v "$(pwd)":/source -it gcc bash
-
-    docker run -p 2222:22 --security-opt seccomp:unconfined -it gcc bash
-    
-    docker run -d -p 2222:22 --security-opt seccomp:unconfined gcc
 
     docker run -p 9091:9091 --security-opt seccomp:unconfined -v (pwd):/source -it gcc bash
+
+    docker run -p 9091:9091 --security-opt seccomp:unconfined -v "$(pwd)":/source -it gcc bash
+    docker run -p 2222:22 --security-opt seccomp:unconfined -it gcc bash    
+    docker run -d -p 2222:22 --security-opt seccomp:unconfined gcc
 
     make clean
     make
 
     ./editor
 
-    valgrind ./editor
+    valgrind --trace-children=yes --track-fds=yes --log-fd=2 --error-limit=no \
+         --leak-check=full --show-possibly-lost=yes --track-origins=yes \
+         --show-reachable=yes --show-leak-kinds=all --xtree-leak=yes ./editor
+
+    xxd data.bin (hex)
+    xxd -b data.bin (binary)
 
     gdb editor
     break main
@@ -66,6 +70,10 @@ Previous board is loaded if `data.bin`, if present
     info locals
     print *state
     print *state->cells
+
+    (in mac, to open xtree files)
+    brew install qcachegrind
+    qcachegrind <file>
 
     https://gist.github.com/rkubik/b96c23bd8ed58333de37f2b8cd052c30
     

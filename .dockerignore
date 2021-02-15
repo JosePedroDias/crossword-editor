@@ -1,5 +1,8 @@
+premake4.lua
+Makefile
 .vscode
 obj
+src
 editor
 README.md
 *.dat

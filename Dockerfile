@@ -1,8 +1,8 @@
 FROM gcc:latest
 
-RUN apt update
-RUN apt -y dist-upgrade
-RUN apt -y install gdb valgrind
+RUN apt-get update
+RUN apt-get -y dist-upgrade
+RUN apt-get -y install gdb valgrind xxd
 
 RUN mkdir -p /source
 WORKDIR /source

@@ -23,7 +23,7 @@ solution "crossword-editor" configurations { "debug", "debugnocurses", "release"
   project "crossword-editor"
   	language "C"
   	kind "ConsoleApp"
-  	files { "editor.c" }
+  	files { "src/editor.c" }
   	targetname ("editor")
   	links { "ncurses" }
 

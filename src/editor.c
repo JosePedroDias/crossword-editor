@@ -4,7 +4,7 @@
 
 //// DEFINES
 
-#define W_CURSES 1
+//#define W_CURSES 1
 
 #define CHAR_TAB 9
 #define CHAR_ENTER 10
@@ -34,41 +34,39 @@
 
 //// data structures
 
-#define S_CELL struct Cell
-struct Cell {
+typedef struct {
     bool filled;
     char value;
-};
+} Cell;
 
 #define FILE_FORMAT_VERSION 1
 
-#define S_STATE struct State
-S_STATE {
+typedef struct {
     int width;
     int height;
-    S_CELL *cells;
-};
+    Cell *cells;
+} State;
 
 //// cell lookup and clean
 
-S_CELL *getCell(S_STATE *state, int x, int y) {
+Cell *getCell(State *state, int x, int y) {
     return &state->cells[y * state->width + x];
 }
 
-void clearCells(S_STATE *state) {
+void clearCells(State *state) {
     int x, y;
     for (y = 0; y < state->height; ++y) {
         for (x = 0; x < state->width; ++x) {
-            S_CELL *cell = getCell(state, x, y);
+            Cell *cell = getCell(state, x, y);
             cell->value = ' ';
             cell->filled = FALSE;
         }
     }
 }
 
-S_STATE *allocState(int width, int height) {
-    S_CELL *cells = calloc(width * height, sizeof(S_CELL));
-    S_STATE *state = calloc(1, sizeof(S_STATE));
+State *allocState(int width, int height) {
+    Cell *cells = malloc(width * height * sizeof(Cell));
+    State *state = malloc(sizeof(State));
     state->width = width;
     state->height = height;
     state->cells = cells;
@@ -76,14 +74,14 @@ S_STATE *allocState(int width, int height) {
     return state;
 }
 
-void freeState(S_STATE *state) {
+void freeState(State *state) {
     free(state->cells);
     free(state);
 }
 
 //// file I/O
 
-S_STATE *load() {
+State *load() {
     FILE *file = fopen(DEFAULT_FILE, "rb");
     if (file == NULL) {
         return false;
@@ -93,29 +91,39 @@ S_STATE *load() {
     if (version != FILE_FORMAT_VERSION) {
         printf("File with unsupported version %d (expected %d).\n", version,
                FILE_FORMAT_VERSION);
+        fclose(file);
         return NULL;
     }
     fread(&width, sizeof(int), 1, file);
     fread(&height, sizeof(int), 1, file);
     printf("%d x %d\n", width, height);
 
-    S_STATE *state = allocState(width, height);
+    State *state = allocState(width, height);
 
-    fread(state->cells, sizeof(S_CELL), width * height, file);
+    fread(state->cells, sizeof(Cell), width * height, file);
     fclose(file);
     return state;
 }
 
-void save(S_STATE *state) {
+void save(State *state) {
     FILE *file = fopen(DEFAULT_FILE, "wb");
 
-    int version = FILE_FORMAT_VERSION;
-    fwrite(&version, sizeof(int), 1, file);
+    int tmp = FILE_FORMAT_VERSION;
+    fwrite(&tmp, sizeof(int), 1, file);
 
+    fwrite(&tmp, sizeof(int), 1, file);
+
+    printf("w: %d\n", state->width);
+
+    // tmp = state->width;
     fwrite(&state->width, sizeof(int), 1, file);
-    fwrite(&state->height, sizeof(int), 1, file);
+    // fwrite(&(state->width), sizeof(int), 1, file);
+    // fwrite(&tmp, sizeof(int), 1, file);
 
-    fwrite(&state->cells, sizeof(S_CELL), state->width * state->height, file);
+    // fwrite(&state->height, sizeof(int), 1, file);
+
+    // fwrite(&state->cells, sizeof(S_CELL), state->width * state->height,
+    // file);
 
     fclose(file);
 }
@@ -156,7 +164,7 @@ void drawGrid(int width, int height) {
     attroff(COLOR_PAIR(CLR_GRID));
 }
 
-void drawCell(S_CELL *cell, int x, int y) {
+void drawCell(Cell *cell, int x, int y) {
     char v = cell->value | ' ';
     if (cell->filled) {
         v = ' ';
@@ -173,11 +181,11 @@ void drawCell(S_CELL *cell, int x, int y) {
     }
 }
 
-void drawCells(S_STATE *state) {
+void drawCells(State *state) {
     int x, y;
     for (y = 0; y < state->height; ++y) {
         for (x = 0; x < state->width; ++x) {
-            S_CELL *cell = getCell(state, x, y);
+            Cell *cell = getCell(state, x, y);
             drawCell(cell, x, y);
         }
     }
@@ -185,7 +193,7 @@ void drawCells(S_STATE *state) {
 
 //// act on user input
 
-void advance(S_CELL *cell, int mode, int *x, int *y, int width, int height,
+void advance(Cell *cell, int mode, int *x, int *y, int width, int height,
              int delta) {
     int *coord = mode == MODE_HORIZONTAL ? x : y;
     int maxValue = mode == MODE_HORIZONTAL ? width : height;
@@ -203,8 +211,8 @@ void advance(S_CELL *cell, int mode, int *x, int *y, int width, int height,
     }
 }
 
-bool processInput(int c, S_STATE *state, int *x, int *y, int *mode) {
-    S_CELL *cell = getCell(state, *x, *y);
+bool processInput(int c, State *state, int *x, int *y, int *mode) {
+    Cell *cell = getCell(state, *x, *y);
     if (c == CHAR_Q) {
         return false;  // leave orderly
     } else if (c == CHAR_TAB) {
@@ -251,7 +259,7 @@ int main(int args, char **argv) {
         }
     }
 
-    S_STATE *state = allocState(width, height);
+    State *state = allocState(width, height);
     // printf("w: %d %d\n", state->width, state->height);
 
     int mode = MODE_HORIZONTAL;
@@ -259,12 +267,14 @@ int main(int args, char **argv) {
     int y = 0;
     int c = 0;
 
+    /*
     if (!load()) {
         clearCells(state);
         printf("new board\n");
     } else {
         printf("load OK\n");
     }
+    */
 
 #ifdef W_CURSES
     initscr();
