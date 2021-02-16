@@ -4,6 +4,38 @@ Had the crazy idea of creating a crosswords editor in curses (terminal).
 Had not coded C in ages! Was very rusty. Was fun.  
 Tested on Mac and Linux. Should work in Msys under Windows too.
 
+
+## Sample screen follows:
+
+```
++-+-+-+-+-+-+-+-+-+-+-+
+|b|a|t|a|t|a|s|▮|c|i|a|
++-+-+-+-+-+-+-+-+-+-+-+
+|a| | | | | |a| | | |c|
++-+-+-+-+-+-+-+-+-+-+-+
+|c| | | | | |l| | | |o|
++-+-+-+-+-+-+-+-+-+-+-+
+|a| | | | | |m| | | |r|
++-+-+-+-+-+-+-+-+-+-+-+
+|l| | | | | |a| | | |d|
++-+-+-+-+-+-+-+-+-+-+-+
+|h| | | | | |o| | | |a|
++-+-+-+-+-+-+-+-+-+-+-+
+|a| | | | | |▮|r|i|a|▮|
++-+-+-+-+-+-+-+-+-+-+-+
+|u|m|v|▮|@| | | | | | |
++-+-+-+-+-+-+-+-+-+-+-+
+|▮|v|i|s|e|u| | | | | |
++-+-+-+-+-+-+-+-+-+-+-+
+|a|▮|▮|u| | | | | | | |
++-+-+-+-+-+-+-+-+-+-+-+
+|i|l|h|a| | | | | | | |
++-+-+-+-+-+-+-+-+-+-+-+
+
+
+pos: 4,7 | mode: HOR | char: 67
+```
+
 ## generate project
 
     premake4 gmake
