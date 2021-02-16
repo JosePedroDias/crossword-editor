@@ -32,6 +32,8 @@
 
 #define DEFAULT_FILE "data.bin"
 
+#define USHORT unsigned short
+
 //// data structures
 
 typedef struct {
@@ -42,19 +44,19 @@ typedef struct {
 #define FILE_FORMAT_VERSION 1
 
 typedef struct {
-    int width;
-    int height;
+    USHORT width;
+    USHORT height;
     Cell *cells;
 } State;
 
 //// cell lookup and clean
 
-Cell *getCell(State *state, int x, int y) {
+Cell *getCell(State *state, USHORT x, USHORT y) {
     return &state->cells[y * state->width + x];
 }
 
 void clearCells(State *state) {
-    int x, y;
+    USHORT x, y;
     for (y = 0; y < state->height; ++y) {
         for (x = 0; x < state->width; ++x) {
             Cell *cell = getCell(state, x, y);
@@ -64,8 +66,9 @@ void clearCells(State *state) {
     }
 }
 
-State *allocState(int width, int height) {
+State *allocState(USHORT width, USHORT height) {
     Cell *cells = malloc(width * height * sizeof(Cell));
+    // Cell *cells = calloc(width * height, sizeof(Cell));
     State *state = malloc(sizeof(State));
     state->width = width;
     state->height = height;
@@ -82,61 +85,62 @@ void freeState(State *state) {
 //// file I/O
 
 State *load() {
-    FILE *file = fopen(DEFAULT_FILE, "rb");
+    FILE *file = fopen(DEFAULT_FILE, "r");
     if (file == NULL) {
         return false;
     }
-    int version, width, height;
-    fread(&version, sizeof(int), 1, file);
+    USHORT version, width, height;
+    fread(&version, sizeof(USHORT), 1, file);
     if (version != FILE_FORMAT_VERSION) {
         printf("File with unsupported version %d (expected %d).\n", version,
                FILE_FORMAT_VERSION);
         fclose(file);
         return NULL;
     }
-    fread(&width, sizeof(int), 1, file);
-    fread(&height, sizeof(int), 1, file);
-    printf("%d x %d\n", width, height);
+    fread(&width, sizeof(USHORT), 1, file);
+    fread(&height, sizeof(USHORT), 1, file);
 
     State *state = allocState(width, height);
 
-    fread(state->cells, sizeof(Cell), width * height, file);
+    USHORT numCells = width * height;
+    Cell *cell = state->cells;
+    for (USHORT i = 0; i < numCells; ++i) {
+        fread(cell, sizeof(Cell), 1, file);
+        ++cell;
+    }
+
     fclose(file);
     return state;
 }
 
 void save(State *state) {
-    FILE *file = fopen(DEFAULT_FILE, "wb");
+    FILE *file = fopen(DEFAULT_FILE, "w");
 
-    int tmp = FILE_FORMAT_VERSION;
-    fwrite(&tmp, sizeof(int), 1, file);
+    USHORT ffv = FILE_FORMAT_VERSION;
+    fwrite(&ffv, sizeof(USHORT), 1, file);
 
-    fwrite(&tmp, sizeof(int), 1, file);
+    fwrite(&state->width, sizeof(USHORT), 1, file);
+    fwrite(&state->height, sizeof(USHORT), 1, file);
 
-    printf("w: %d\n", state->width);
-
-    // tmp = state->width;
-    fwrite(&state->width, sizeof(int), 1, file);
-    // fwrite(&(state->width), sizeof(int), 1, file);
-    // fwrite(&tmp, sizeof(int), 1, file);
-
-    // fwrite(&state->height, sizeof(int), 1, file);
-
-    // fwrite(&state->cells, sizeof(S_CELL), state->width * state->height,
-    // file);
+    USHORT numCells = state->width * state->height;
+    Cell *cell = state->cells;
+    for (USHORT i = 0; i < numCells; ++i) {
+        fwrite(cell, sizeof(Cell), 1, file);
+        ++cell;
+    }
 
     fclose(file);
 }
 
 //// draw functions
 
-void drawCursor(int x, int y) {
+void drawCursor(USHORT x, USHORT y) {
     attron(COLOR_PAIR(CLR_CURSOR));
     mvaddch(y * 2 + 1, x * 2 + 1, '@');
     attroff(COLOR_PAIR(CLR_CURSOR));
 }
 
-void drawStatus(int x, int y, int c, int mode) {
+void drawStatus(USHORT x, USHORT y, USHORT c, USHORT mode) {
     char *modeS = mode == MODE_HORIZONTAL ? "HOR" : "VER";
 #ifdef DEBUG
     mvprintw(STATUS_Y, 0, "pos: %d,%d | mode: %s | char: %d   ", x, y, modeS,
@@ -146,8 +150,8 @@ void drawStatus(int x, int y, int c, int mode) {
 #endif
 }
 
-void drawGrid(int width, int height) {
-    int x, y;
+void drawGrid(USHORT width, USHORT height) {
+    USHORT x, y;
     attron(COLOR_PAIR(CLR_GRID));
     for (y = 0; y <= height; ++y) {
         for (x = 0; x <= width; ++x) {
@@ -164,7 +168,7 @@ void drawGrid(int width, int height) {
     attroff(COLOR_PAIR(CLR_GRID));
 }
 
-void drawCell(Cell *cell, int x, int y) {
+void drawCell(Cell *cell, USHORT x, USHORT y) {
     char v = cell->value | ' ';
     if (cell->filled) {
         v = ' ';
@@ -182,7 +186,7 @@ void drawCell(Cell *cell, int x, int y) {
 }
 
 void drawCells(State *state) {
-    int x, y;
+    USHORT x, y;
     for (y = 0; y < state->height; ++y) {
         for (x = 0; x < state->width; ++x) {
             Cell *cell = getCell(state, x, y);
@@ -193,10 +197,10 @@ void drawCells(State *state) {
 
 //// act on user input
 
-void advance(Cell *cell, int mode, int *x, int *y, int width, int height,
-             int delta) {
-    int *coord = mode == MODE_HORIZONTAL ? x : y;
-    int maxValue = mode == MODE_HORIZONTAL ? width : height;
+void advance(Cell *cell, USHORT mode, USHORT *x, USHORT *y, USHORT width,
+             USHORT height, short delta) {
+    USHORT *coord = mode == MODE_HORIZONTAL ? x : y;
+    USHORT maxValue = mode == MODE_HORIZONTAL ? width : height;
     bool valid = TRUE;
 
     if (delta == 1) {
@@ -211,7 +215,7 @@ void advance(Cell *cell, int mode, int *x, int *y, int width, int height,
     }
 }
 
-bool processInput(int c, State *state, int *x, int *y, int *mode) {
+bool processInput(char c, State *state, USHORT *x, USHORT *y, USHORT *mode) {
     Cell *cell = getCell(state, *x, *y);
     if (c == CHAR_Q) {
         return false;  // leave orderly
@@ -244,8 +248,8 @@ bool processInput(int c, State *state, int *x, int *y, int *mode) {
 //// main
 
 int main(int args, char **argv) {
-    int width = 11;
-    int height = 11;
+    USHORT width = 11;
+    USHORT height = 11;
 
     if (args == 3) {
         width = atoi(argv[1]);
@@ -262,19 +266,17 @@ int main(int args, char **argv) {
     State *state = allocState(width, height);
     // printf("w: %d %d\n", state->width, state->height);
 
-    int mode = MODE_HORIZONTAL;
-    int x = 0;
-    int y = 0;
-    int c = 0;
+    USHORT mode = MODE_HORIZONTAL;
+    USHORT x = 0;
+    USHORT y = 0;
+    USHORT c = 0;
 
-    /*
     if (!load()) {
         clearCells(state);
         printf("new board\n");
     } else {
         printf("load OK\n");
     }
-    */
 
 #ifdef W_CURSES
     initscr();
