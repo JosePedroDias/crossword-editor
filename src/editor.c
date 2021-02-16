@@ -248,34 +248,42 @@ bool processInput(char c, State *state, USHORT *x, USHORT *y, USHORT *mode) {
 //// main
 
 int main(int args, char **argv) {
-    USHORT width = 11;
-    USHORT height = 11;
-
-    if (args == 3) {
-        width = atoi(argv[1]);
-        height = atoi(argv[2]);
-        if (width < 1 || width > 20 || height < 1 || height > 20) {
-            printf(
-                "Dimension values must be between 1 and 20 (received %d and "
-                "%d)!\n",
-                width, height);
-            exit(2);
-        }
-    }
-
-    State *state = allocState(width, height);
-    // printf("w: %d %d\n", state->width, state->height);
-
+    State *state = NULL;
     USHORT mode = MODE_HORIZONTAL;
     USHORT x = 0;
     USHORT y = 0;
     USHORT c = 0;
 
-    if (!load()) {
-        clearCells(state);
-        printf("new board\n");
-    } else {
-        printf("load OK\n");
+    {
+        USHORT width = 11;
+        USHORT height = 11;
+        bool receivedDims = false;
+
+        if (args == 3) {
+            width = atoi(argv[1]);
+            height = atoi(argv[2]);
+            if (width < 1 || width > 20 || height < 1 || height > 20) {
+                printf(
+                    "Dimension values must be between 1 and 20 (received %d "
+                    "and "
+                    "%d)!\n",
+                    width, height);
+                exit(2);
+            }
+            receivedDims = true;
+        }
+
+        if (!receivedDims) {
+            state = load();
+        }
+
+        if (state == NULL) {
+            state = allocState(width, height);
+            clearCells(state);
+            printf("new board of %d x %d\n", state->width, state->height);
+        } else {
+            printf("loaded board of %d x %d\n", state->width, state->height);
+        }
     }
 
 #ifdef W_CURSES
@@ -295,7 +303,7 @@ int main(int args, char **argv) {
     init_pair(CLR_FILLED, COLOR_BLACK, COLOR_WHITE);
     init_pair(CLR_CURSOR, COLOR_RED, COLOR_BLACK);
 
-    drawGrid(width, height);
+    drawGrid(state->width, state->height);
     drawCells(state);
 
     do {
