@@ -1,18 +1,27 @@
 # crossword editor
 
+Had the crazy idea of creating a crosswords editor in curses (terminal).  
+Had not coded C in ages! Was very rusty. Was fun.  
+Tested on Mac and Linux. Should work in Msys under Windows too.
+
 ## generate project
 
     premake4 gmake
 
+You can generate xcode or vscode versions too,  
+do `premake4 --help` to know more.
+
 ## compiling
+
+to build the debug version:
 
     make
 
-or
+for the release version:
 
     make config=release
 
-or
+to skip curses altogether and just test load/save:
 
     make config=debugnocurses
 
@@ -24,43 +33,50 @@ or, if you want to override the default 11 x 11 dimensions:
 
     ./editor 16 14
 
-Previous board is loaded if `data.bin`, if present
+Previous board is loaded if `data.bin`, if present.
 
 ## keys
 
 - arrow keys to move
-- write down characters to set cell
+- write down characters to set cells
 - BCKSPC deletes
-- ENTER to fill/unfill cell
+- ENTER to fill/unfill cell (filled cells can't be edited, only unset)
 - TAB to toggle between horizontal and vertical fill modes
 - Q to save and exit
 
 ## TODO
 
-- binary format with version, width and height
-
+- nothing for now, codewise :D
+- would love to setup remote gdb (was not successful so far)
 
 ## Running in docker
 
+build the image:
+
     docker build . -t gcc
 
-    docker run -p 9091:9091 --security-opt seccomp:unconfined -v (pwd):/source -it gcc bash
+use the image:
 
-    docker run -p 9091:9091 --security-opt seccomp:unconfined -v "$(pwd)":/source -it gcc bash
-    docker run -p 2222:22 --security-opt seccomp:unconfined -it gcc bash    
-    docker run -d -p 2222:22 --security-opt seccomp:unconfined gcc
+    docker run -it gcc bash
 
-    make clean
-    make
+## Linux tools
 
-    ./editor
+basic memory test:
+
+    valgrind ./editor
+
+memory test:
 
     valgrind --trace-children=yes --track-fds=yes --log-fd=2 --error-limit=no \
          --leak-check=full --show-possibly-lost=yes --track-origins=yes \
          --show-reachable=yes --show-leak-kinds=all --xtree-leak=yes ./editor
 
+print binary files:
+
     xxd data.bin (hex)
     xxd -b data.bin (binary)
+
+use gdb:
 
     gdb editor
     break main
@@ -71,11 +87,18 @@ Previous board is loaded if `data.bin`, if present
     print *state
     print *state->cells
 
-    (in mac, to open xtree files)
+## Yet to work
+
+tested without success (uncomment Dockerfile lines):
+
+    docker run -p 9091:9091 --security-opt seccomp:unconfined -v "$(pwd)":/source -it gcc bash
+
+in mac, to open valgrind generated xtree files:
+
     brew install qcachegrind
     qcachegrind <file>
 
-    https://gist.github.com/rkubik/b96c23bd8ed58333de37f2b8cd052c30
+unsuccessful gdbserver visited by mac host vscode debugging:
     
     gdbserver localhost:9091 editor
 

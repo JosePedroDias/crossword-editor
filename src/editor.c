@@ -68,7 +68,6 @@ void clearCells(State *state) {
 
 State *allocState(USHORT width, USHORT height) {
     Cell *cells = malloc(width * height * sizeof(Cell));
-    // Cell *cells = calloc(width * height, sizeof(Cell));
     State *state = malloc(sizeof(State));
     state->width = width;
     state->height = height;
